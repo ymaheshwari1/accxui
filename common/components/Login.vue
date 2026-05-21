@@ -150,7 +150,11 @@ const login = async (params?: any) => {
     // All the failure cases are handled in action, if then block is executing, login is successful
     username.value = "";
     password.value = "";
-    router.value.push("/");
+    if(localStorage.getItem("requestedPagePath")) {
+      router.value.replace(localStorage.getItem("requestedPagePath"))
+    } else {
+      router.value.replace("/")
+    }
   } catch (error: any) {
     errorMessage.value = error
     console.error(error);

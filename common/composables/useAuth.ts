@@ -12,6 +12,8 @@ interface LoginOption {
 
 const loginOption = ref<LoginOption>({})
 export const omsRef = ref("")
+const token = ref(cookieHelper().get("token") || "")
+const expirationTime = ref(cookieHelper().get("expirationTime") || "")
 
 export function useAuth() {
   const getDuration = (expirationTime?: any) => {
@@ -20,10 +22,12 @@ export function useAuth() {
   }
 
 
-  const updateToken = (token: any, expirationTime: any) => {
-    const duration = getDuration(expirationTime);
-    cookieHelper().set("token", token, duration)
-    cookieHelper().set("expirationTime", expirationTime, duration)
+  const updateToken = (newToken: any, newExpirationTime: any) => {
+    const duration = getDuration(newExpirationTime);
+    cookieHelper().set("token", newToken, duration)
+    cookieHelper().set("expirationTime", newExpirationTime, duration)
+    token.value = newToken
+    expirationTime.value = newExpirationTime
   }
 
   const updateOMS = (oms: any) => {
@@ -50,7 +54,9 @@ export function useAuth() {
     let isOmsVerified = false;
     let isUserVerified = false;
 
-    const expiry = Number(commonUtil.getTokenExpiration());
+    if (!token.value || !expirationTime.value) return false;
+
+    const expiry = Number(expirationTime.value);
     if(expiry) {
       const currTime = DateTime.now().toMillis();
       isTokenExpired = expiry < currTime;
@@ -165,6 +171,8 @@ export function useAuth() {
         logger.error("Error running postLogout hook", err);
       }
     }
+
+    localStorage.removeItem("requestedPagePath")
 
     if (commonUtil.isAppEmbedded()) {
       const embeddedAppStore = useEmbeddedAppStore();
