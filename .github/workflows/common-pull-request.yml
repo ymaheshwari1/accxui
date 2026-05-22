@@ -25,10 +25,11 @@ jobs:
     - name: Checkout accxui
       uses: actions/checkout@v4
       with:
+        repository: hotwax/accxui
         path: .
 
     - name: Checkout app in apps/
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: ${{ inputs.app }}
         path: apps/${{ inputs.appDir }}
