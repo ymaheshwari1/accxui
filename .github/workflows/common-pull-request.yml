@@ -31,7 +31,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: ${{ inputs.app }}
-        token: ${{ secrets.envPAT }}
         path: apps/${{ inputs.appDir }}
 
     - name: Install pnpm
