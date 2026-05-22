@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "pnpm lint && vite",
-    "build": "pnpm lint && vue-tsc && vite build",
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
     "lint": "eslint ."
