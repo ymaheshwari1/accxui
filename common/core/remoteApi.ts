@@ -20,6 +20,7 @@ const requestInterceptor = async (config: any) => {
   // as these are often called during the authentication flow itself or to refresh local state.
   if (!useAuth().isAuthenticated.value && !noAuthEndpoints.includes(config.url)) {
     await useAuth().logout({ isUserUnauthorised: true, invalidAppContext: true })
+    useAuth().clearAuth()
     return Promise.reject(new Error("INVALID_APP_CONTEXT"));
   }
 
