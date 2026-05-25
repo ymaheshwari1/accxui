@@ -27,28 +27,35 @@ jobs:
     steps:
       - name: Checkout accxui
         uses: actions/checkout@v4
+        with:
+          repository: hotwax/accxui
+          path: .
 
       - name: Checkout app in apps/
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.app }}
-          token: ${{ secrets.envPAT }}
           path: apps/${{ inputs.appDir }} 
       
-      - uses: pnpm/action-setup@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - name: Use Node.js v22
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: 'pnpm'
+
       - name: Install Dependencies
         run: pnpm install
+
       - name: Generate .env file
         run: cp .env.example .env
         working-directory: apps/${{ inputs.appDir }}
+
       - name: Set Firebase and VAPID Config
         run: |
           if [[ -n "$VUE_APP_FIREBASE_CONFIG" ]]; then
@@ -60,8 +67,10 @@ jobs:
           VUE_APP_FIREBASE_CONFIG: ${{ secrets.VUE_APP_FIREBASE_CONFIG }}
           VUE_APP_FIREBASE_VAPID_KEY: ${{ secrets.VUE_APP_FIREBASE_VAPID_KEY }}
         working-directory: apps/${{ inputs.appDir }}
+
       - name: Build
-        run: pnpm run build
+        run: pnpm --filter ${{ inputs.appDir }} build
+
       - name: Firebase Install and Deploy
         run: |
           npm install -g firebase-tools
