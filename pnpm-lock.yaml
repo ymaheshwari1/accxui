@@ -182,9 +182,6 @@ importers:
       '@capacitor/ios':
         specifier: 'catalog:'
         version: 8.2.0(@capacitor/core@8.2.0)
-      '@casl/ability':
-        specifier: ^6.7.3
-        version: 6.8.0
       '@ionic/core':
         specifier: 'catalog:'
         version: 8.8.0
@@ -212,9 +209,6 @@ importers:
       axios-cache-adapter:
         specifier: 'catalog:'
         version: 2.7.3(axios@0.21.1)
-      boon-js:
-        specifier: ^2.0.5
-        version: 2.0.5
       comlink:
         specifier: 'catalog:'
         version: 4.4.2
