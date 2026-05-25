@@ -388,11 +388,11 @@ const getOmsURL = () => {
 }
 
 const getToken = () => {
-  return getEmbeddedAppStoreSafe().token.value || cookieHelper().get("token")
+  return getEmbeddedAppStoreSafe().getToken || cookieHelper().get("token")
 }
 
 const getTokenExpiration = () => {
-  return getEmbeddedAppStoreSafe().token.expiration || cookieHelper().get("expirationTime")
+  return getEmbeddedAppStoreSafe().getTokenExpiration || cookieHelper().get("expirationTime")
 }
 
 const isAppEmbedded = () => {
