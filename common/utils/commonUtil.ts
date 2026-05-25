@@ -572,6 +572,16 @@ const generateInternalId = (name: string) => {
   return name.trim().toUpperCase().split(' ').join('_');
 }
 
+const isValidEmail = (email: string) => {
+  const emailPattern = /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/;
+  return emailPattern.test(email);
+}
+
+const isValidPassword = (password: string) => {
+  const passwordPattern = /^.*(?=.{5,})(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).*$/;
+  return passwordPattern.test(password);
+}
+
 const isValidDeliveryDays = (deliveryDays: any) => {
   // Regular expression pattern for a valid delivery days
   // Allow only positive integers (no decimals, no zero, no negative)
@@ -888,6 +898,8 @@ export const commonUtil = {
   isPdf,
   isValidCarrierCode,
   isValidDeliveryDays,
+  isValidEmail,
+  isValidPassword,
   jsonParse,
   jsonToCsv,
   parseBooleanSetting,
