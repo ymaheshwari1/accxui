@@ -17,6 +17,14 @@ export interface JsonToCsvOption {
   download?: boolean;
 }
 
+const getEmbeddedAppStoreSafe = () => {
+  try {
+    return useEmbeddedAppStore();
+  } catch (e) {
+    return {} as any;
+  }
+}
+
 const goToOms = () => {
   const oms = getOmsURL()!
   const token = getToken()!
@@ -358,7 +366,7 @@ const telecomCode = {
 } as any;
 
 const getMaargURL = () => {
-  const maarg = useEmbeddedAppStore().maarg || cookieHelper().get("maarg")
+  const maarg = getEmbeddedAppStoreSafe().maarg || cookieHelper().get("maarg")
   let maargURL = ""
   if (maarg) {
     maargURL = maarg.startsWith('http') ? maarg.includes('/rest/s1') ? maarg : `${maarg}/rest/s1/` : `https://${maarg}.hotwax.io/rest/s1/`;
@@ -367,11 +375,11 @@ const getMaargURL = () => {
 }
 
 const getMaargBaseURL = () => {
-  return useEmbeddedAppStore().maarg || cookieHelper().get("maarg")
+  return getEmbeddedAppStoreSafe().maarg || cookieHelper().get("maarg")
 }
 
 const getOmsURL = () => {
-  const oms = useEmbeddedAppStore().oms || cookieHelper().get("oms")
+  const oms = getEmbeddedAppStoreSafe().oms || cookieHelper().get("oms")
   let omsURL = ""
   if (oms) {
     omsURL = oms.startsWith('http') ? oms.includes('/api') ? oms : `${oms}/api/` : `https://${oms}.hotwax.io/api/`
@@ -380,15 +388,15 @@ const getOmsURL = () => {
 }
 
 const getToken = () => {
-  return useEmbeddedAppStore().token.value || cookieHelper().get("token")
+  return getEmbeddedAppStoreSafe().token.value || cookieHelper().get("token")
 }
 
 const getTokenExpiration = () => {
-  return useEmbeddedAppStore().token.expiration || cookieHelper().get("expirationTime")
+  return getEmbeddedAppStoreSafe().token.expiration || cookieHelper().get("expirationTime")
 }
 
 const isAppEmbedded = () => {
-  return !!useEmbeddedAppStore().shopifyAppBridge
+  return !!getEmbeddedAppStoreSafe().shopifyAppBridge
 }
 
 const statusColor = {
