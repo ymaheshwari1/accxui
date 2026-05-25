@@ -14,6 +14,7 @@
               <p>
                 {{ errorMessage }}
               </p>
+              <p>{{ translate("Please contact the administrator.") }}</p>
               <ion-button class="ion-margin-top" @click="goToLogin()">
                 <ion-icon slot="start" :icon="arrowBackOutline" />
                 {{ translate("Back to Login") }}
