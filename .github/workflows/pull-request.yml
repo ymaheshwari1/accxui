@@ -1,0 +1,51 @@
+name: Verify build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        app: ["launchpad", "fulfillment", "bopis", "receiving", "job-manager", "order-routing", "inventory-count", "available-to-promise", "transfers", "facilities", "users", "company", "preorder"]
+
+    steps:
+    - name: Checkout accxui
+      uses: actions/checkout@v4
+      with:
+        repository: hotwax/accxui
+        path: .
+
+    - name: Checkout ${{ matrix.app }} in apps/
+      uses: actions/checkout@v4
+      with:
+        repository: hotwax/${{ matrix.app }}
+        path: apps/${{ matrix.app }}
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+        run_install: false
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'pnpm'
+
+    - name: Install Dependencies
+      run: pnpm install
+
+    - name: Generate .env file
+      run: cp .env.example .env
+      working-directory: apps/${{ matrix.app }}
+
+    - name: Build
+      run: pnpm --filter ${{ matrix.app }} build
