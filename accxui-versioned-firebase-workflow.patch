@@ -1,0 +1,253 @@
+diff --git a/.github/workflows/common-firebase-hosting-merge.yml b/.github/workflows/common-firebase-hosting-merge.yml
+index 1b33e73..8c3ee44 100644
+--- a/.github/workflows/common-firebase-hosting-merge.yml
++++ b/.github/workflows/common-firebase-hosting-merge.yml
+@@ -13,6 +13,15 @@ on:
+       firebaseProject:
+         default: 'default'
+         type: string
++      versionsEndpoint:
++        default: ''
++        type: string
++      versionsEndpointAuthHeader:
++        default: 'Authorization'
++        type: string
++      versionsEndpointAuthScheme:
++        default: 'Bearer'
++        type: string
+     secrets:
+       envPAT:
+         required: true
+@@ -22,6 +31,8 @@ on:
+         required: false
+       VITE_FIREBASE_VAPID_KEY:
+         required: false
++      VERSIONS_ENDPOINT_TOKEN:
++        required: false
+ 
+ jobs:
+   build_and_deploy:
+@@ -39,6 +50,7 @@ jobs:
+         with:
+           repository: ${{ inputs.app }}
+           path: apps/${{ inputs.appDir }} 
++          token: ${{ secrets.envPAT }}
+       
+       - name: Install pnpm
+         uses: pnpm/action-setup@v4
+@@ -52,14 +64,36 @@ jobs:
+           node-version: 22
+           cache: 'pnpm'
+ 
++      - name: Fetch deployment versions
++        if: ${{ inputs.versionsEndpoint != '' }}
++        run: |
++          if [[ -n "$VERSIONS_ENDPOINT_TOKEN" ]]; then
++            if [[ -n "${{ inputs.versionsEndpointAuthScheme }}" ]]; then
++              AUTH_VALUE="${{ inputs.versionsEndpointAuthScheme }} $VERSIONS_ENDPOINT_TOKEN"
++            else
++              AUTH_VALUE="$VERSIONS_ENDPOINT_TOKEN"
++            fi
++            curl -fsSL -H "${{ inputs.versionsEndpointAuthHeader }}: $AUTH_VALUE" "${{ inputs.versionsEndpoint }}" -o "$RUNNER_TEMP/app-versions.json"
++          else
++            curl -fsSL "${{ inputs.versionsEndpoint }}" -o "$RUNNER_TEMP/app-versions.json"
++          fi
++
++          node .github/scripts/normalize-version-builds.mjs "$RUNNER_TEMP/app-versions.json" "$RUNNER_TEMP/version-builds.json"
++          node -e "const versions=require(process.argv[1]); for (const item of versions) console.log([item.build,item.ref,item.version].join('\t'))" "$RUNNER_TEMP/version-builds.json" > "$RUNNER_TEMP/version-builds.tsv"
++        env:
++          VERSIONS_ENDPOINT_TOKEN: ${{ secrets.VERSIONS_ENDPOINT_TOKEN }}
++
+       - name: Install Dependencies
++        if: ${{ inputs.versionsEndpoint == '' }}
+         run: pnpm install
+ 
+       - name: Generate .env file
++        if: ${{ inputs.versionsEndpoint == '' }}
+         run: cp .env.example .env
+         working-directory: apps/${{ inputs.appDir }}
+ 
+       - name: Set Firebase and VAPID Config
++        if: ${{ inputs.versionsEndpoint == '' }}
+         run: |
+           if [[ -n "$VITE_FIREBASE_CONFIG" ]]; then
+             sed -i "s|^VITE_FIREBASE_CONFIG=.*|VITE_FIREBASE_CONFIG=$VITE_FIREBASE_CONFIG|g" .env
+@@ -72,8 +106,42 @@ jobs:
+         working-directory: apps/${{ inputs.appDir }}
+ 
+       - name: Build
++        if: ${{ inputs.versionsEndpoint == '' }}
+         run: pnpm --filter ${{ inputs.appDir }} build
+ 
++      - name: Build requested versions
++        if: ${{ inputs.versionsEndpoint != '' }}
++        run: |
++          APP_DIR="apps/${{ inputs.appDir }}"
++          cp "$APP_DIR/firebase.json" "$RUNNER_TEMP/firebase.base.json"
++          rm -rf "$APP_DIR/dist"
++          git -C "$APP_DIR" fetch --force --tags origin '+refs/heads/*:refs/remotes/origin/*'
++
++          while IFS=$'\t' read -r BUILD_PATH GIT_REF VERSION; do
++            echo "Building $VERSION from $GIT_REF into dist/$BUILD_PATH"
++
++            git -C "$APP_DIR" checkout --force "$GIT_REF" \
++              || git -C "$APP_DIR" checkout --force "refs/tags/$GIT_REF" \
++              || git -C "$APP_DIR" checkout --force "origin/$GIT_REF"
++
++            pnpm install
++
++            cp "$APP_DIR/.env.example" "$APP_DIR/.env"
++            if [[ -n "$VITE_FIREBASE_CONFIG" ]]; then
++              sed -i "s|^VITE_FIREBASE_CONFIG=.*|VITE_FIREBASE_CONFIG=$VITE_FIREBASE_CONFIG|g" "$APP_DIR/.env"
++              sed -i "s|^VITE_FIREBASE_VAPID_KEY=.*|VITE_FIREBASE_VAPID_KEY='$VITE_FIREBASE_VAPID_KEY'|g" "$APP_DIR/.env"
++              sed -i "s|const firebaseConfig =.*|const firebaseConfig = $VITE_FIREBASE_CONFIG|g" "$APP_DIR/public/firebase-messaging-sw.js"
++            fi
++
++            VITE_APP_BUILD="$BUILD_PATH" pnpm --filter ${{ inputs.appDir }} build
++          done < "$RUNNER_TEMP/version-builds.tsv"
++
++          cp "$RUNNER_TEMP/firebase.base.json" "$APP_DIR/firebase.json"
++          node .github/scripts/generate-firebase-rewrites.mjs "$APP_DIR/firebase.json" "$RUNNER_TEMP/version-builds.json"
++        env:
++          VITE_FIREBASE_CONFIG: ${{ secrets.VITE_FIREBASE_CONFIG }}
++          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
++
+       - name: Firebase Install and Deploy
+         run: |
+           npm install -g firebase-tools
+
+diff --git a/.github/scripts/normalize-version-builds.mjs b/.github/scripts/normalize-version-builds.mjs
+new file mode 100644
+index 0000000..82a99e7
+--- /dev/null
++++ b/.github/scripts/normalize-version-builds.mjs
+@@ -0,0 +1,79 @@
++import fs from 'node:fs';
++
++const [, , inputPath, outputPath] = process.argv;
++
++if (!inputPath || !outputPath) {
++  console.error('Usage: normalize-version-builds.mjs <input-json> <output-json>');
++  process.exit(1);
++}
++
++const payload = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
++
++const candidates = Array.isArray(payload)
++  ? payload
++  : payload.versions
++    || payload.activeVersions
++    || payload.releases
++    || payload.items
++    || [];
++
++if (!Array.isArray(candidates) || !candidates.length) {
++  console.error('Version endpoint must return an array, or an object with versions/activeVersions/releases/items.');
++  process.exit(1);
++}
++
++const normalizeSegment = (value, label) => {
++  const segment = String(value || '').trim().replace(/^\/+|\/+$/g, '');
++
++  if (!segment) {
++    console.error(`Missing ${label} in version endpoint response.`);
++    process.exit(1);
++  }
++
++  if (segment.includes('..') || !/^[A-Za-z0-9._-]+$/.test(segment)) {
++    console.error(`Invalid ${label} "${segment}". Use only letters, numbers, dots, underscores, and hyphens.`);
++    process.exit(1);
++  }
++
++  return segment;
++};
++
++const versions = candidates.map((item) => {
++  const entry = typeof item === 'string' ? { version: item } : item;
++  const version = normalizeSegment(entry.version || entry.name || entry.path || entry.ref || entry.tag, 'version');
++  const build = normalizeSegment(entry.path || entry.build || entry.version || version, 'path/build');
++  const ref = String(entry.ref || entry.tag || entry.version || version).trim();
++
++  if (!ref) {
++    console.error(`Missing git ref for version "${version}".`);
++    process.exit(1);
++  }
++
++  return {
++    version,
++    build,
++    ref,
++    default: Boolean(entry.default || entry.latest || entry.current)
++  };
++});
++
++const seen = new Set();
++for (const entry of versions) {
++  if (seen.has(entry.build)) {
++    console.error(`Duplicate build path "${entry.build}" in version endpoint response.`);
++    process.exit(1);
++  }
++  seen.add(entry.build);
++}
++
++const defaultVersion = payload.defaultVersion || payload.latestVersion || payload.currentVersion;
++if (defaultVersion && !versions.some((entry) => entry.default)) {
++  const match = versions.find((entry) => entry.version === defaultVersion || entry.build === defaultVersion || entry.ref === defaultVersion);
++  if (match) match.default = true;
++}
++
++if (!versions.some((entry) => entry.default)) {
++  versions[versions.length - 1].default = true;
++}
++
++fs.writeFileSync(outputPath, `${JSON.stringify(versions, null, 2)}\n`);
+
+diff --git a/.github/scripts/generate-firebase-rewrites.mjs b/.github/scripts/generate-firebase-rewrites.mjs
+new file mode 100644
+index 0000000..718beb7
+--- /dev/null
++++ b/.github/scripts/generate-firebase-rewrites.mjs
+@@ -0,0 +1,43 @@
++import fs from 'node:fs';
++
++const [, , firebasePath, versionsPath] = process.argv;
++
++if (!firebasePath || !versionsPath) {
++  console.error('Usage: generate-firebase-rewrites.mjs <firebase-json> <versions-json>');
++  process.exit(1);
++}
++
++const firebaseConfig = JSON.parse(fs.readFileSync(firebasePath, 'utf8'));
++const versions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
++
++if (!Array.isArray(versions) || !versions.length) {
++  console.error('No versions found for Firebase rewrites.');
++  process.exit(1);
++}
++
++const defaultVersion = versions.find((entry) => entry.default) || versions[versions.length - 1];
++const rewrites = [
++  ...versions.map((entry) => ({
++    source: `/${entry.build}{,/**}`,
++    destination: `/${entry.build}/index.html`
++  })),
++  {
++    source: '**',
++    destination: `/${defaultVersion.build}/index.html`
++  }
++];
++
++const hostingEntries = Array.isArray(firebaseConfig.hosting)
++  ? firebaseConfig.hosting
++  : [firebaseConfig.hosting];
++
++if (!hostingEntries.length || hostingEntries.some((entry) => !entry)) {
++  console.error('firebase.json must contain a hosting object or hosting array.');
++  process.exit(1);
++}
++
++for (const hosting of hostingEntries) {
++  hosting.rewrites = rewrites;
++}
++
++fs.writeFileSync(firebasePath, `${JSON.stringify(firebaseConfig, null, 2)}\n`);
