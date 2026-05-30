@@ -382,7 +382,13 @@ const getOmsURL = () => {
   const oms = getEmbeddedAppStoreSafe().oms || cookieHelper().get("oms")
   let omsURL = ""
   if (oms) {
-    omsURL = oms.startsWith('http') ? oms.includes('/api') ? oms : `${oms}/api/` : `https://${oms}.hotwax.io/api/`
+    // Treat URLs already containing /api or /rest/ as fully-qualified (e.g. Moqui REST URLs).
+    // For plain instance names/hostnames, append /api/ (OFBiz convention).
+    omsURL = oms.startsWith('http')
+      ? (oms.includes('/api') || oms.includes('/rest/')) ? oms : `${oms}/api/`
+      : `https://${oms}.hotwax.io/api/`
+    // Ensure trailing slash so appended endpoint paths join correctly
+    if (omsURL && !omsURL.endsWith('/')) omsURL += '/'
   }
   return omsURL;
 }
