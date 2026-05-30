@@ -6,7 +6,7 @@ import { translate } from "../core/i18n";
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import Encoding from 'encoding-japanese';
-import cronParser from "cron-parser";
+import { CronExpressionParser as cronParser } from "cron-parser";
 import cronstrue from "cronstrue"
 import { useEmbeddedAppStore } from "../store/embeddedApp";
 
