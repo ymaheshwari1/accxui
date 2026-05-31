@@ -385,16 +385,18 @@ const getOmsURL = () => {
   const isMoqui = import.meta.env.VITE_OMS_TYPE === 'moqui'
   let omsURL = ""
   if (oms) {
-    if (oms.startsWith('http')) {
+    const trimmedOms = oms.trim()
+    if (trimmedOms.startsWith('http')) {
+      const cleanOms = trimmedOms.replace(/\/+$/, '')
       // Full URL provided — use as-is if it already has a known path suffix
-      omsURL = (oms.includes('/api') || oms.includes('/rest/'))
-        ? oms
-        : isMoqui ? `${oms}/rest/s1/admin/` : `${oms}/api/`
+      omsURL = (trimmedOms.includes('/api') || trimmedOms.includes('/rest/'))
+        ? trimmedOms
+        : isMoqui ? `${cleanOms}/rest/s1/admin/` : `${cleanOms}/api/`
     } else {
       // Plain subdomain — build full URL for the configured backend type
       omsURL = isMoqui
-        ? `https://${oms}.hotwax.io/rest/s1/admin/`
-        : `https://${oms}.hotwax.io/api/`
+        ? `https://${trimmedOms}.hotwax.io/rest/s1/admin/`
+        : `https://${trimmedOms}.hotwax.io/api/`
     }
     if (omsURL && !omsURL.endsWith('/')) omsURL += '/'
   }

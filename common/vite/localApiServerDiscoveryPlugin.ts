@@ -1,17 +1,17 @@
 import type { Plugin } from "vite";
 
-type LocalMoquiSignal = "checkLoginOptions" | "rest";
+type LocalApiServerSignal = "loginOptions" | "rest";
 
-interface LocalMoquiServer {
+interface LocalApiServer {
   label: string;
   oms: string;
   port: number;
-  signal: LocalMoquiSignal;
+  signal: LocalApiServerSignal;
 }
 
-const DEFAULT_LOCAL_MOQUI_PORTS = [8080, 8443, 8081, 8082];
-const LOCAL_MOQUI_HOST = "localhost";
-const DISCOVERY_PATH = "/__accxui/local-moqui-servers";
+const DEFAULT_LOCAL_API_SERVER_PORTS = [8080, 8443, 8081, 8082];
+const LOCAL_API_SERVER_HOST = "localhost";
+const DISCOVERY_PATH = "/__accxui/local-api-servers";
 const REQUEST_TIMEOUT_MS = 700;
 
 const parsePortList = (value?: string) => {
@@ -25,8 +25,9 @@ const parsePortList = (value?: string) => {
 
 const getProbePorts = () => {
   return [...new Set([
+    ...parsePortList(process.env.VITE_LOCAL_API_SERVER_PORTS),
     ...parsePortList(process.env.VITE_LOCAL_MOQUI_PORTS),
-    ...DEFAULT_LOCAL_MOQUI_PORTS
+    ...DEFAULT_LOCAL_API_SERVER_PORTS
   ])];
 };
 
@@ -49,18 +50,18 @@ const isRestSignal = (response: Response) => {
   return response.ok || [401, 403, 405].includes(response.status);
 };
 
-const detectLocalMoquiServer = async (port: number): Promise<LocalMoquiServer | null> => {
-  const oms = `http://${LOCAL_MOQUI_HOST}:${port}`;
+const detectLocalApiServer = async (port: number): Promise<LocalApiServer | null> => {
+  const oms = `http://${LOCAL_API_SERVER_HOST}:${port}`;
   const baseRestUrl = `${oms}/rest/s1/`;
 
   try {
     const response = await fetchWithTimeout(`${baseRestUrl}admin/checkLoginOptions`);
     if (response.ok) {
       return {
-        label: `Local Moqui ${port}`,
+        label: `Local API Server ${port}`,
         oms,
         port,
-        signal: "checkLoginOptions"
+        signal: "loginOptions"
       };
     }
   } catch {
@@ -71,7 +72,7 @@ const detectLocalMoquiServer = async (port: number): Promise<LocalMoquiServer | 
     const response = await fetchWithTimeout(baseRestUrl);
     if (isRestSignal(response)) {
       return {
-        label: `Local Moqui ${port}`,
+        label: `Local API Server ${port}`,
         oms,
         port,
         signal: "rest"
@@ -84,14 +85,14 @@ const detectLocalMoquiServer = async (port: number): Promise<LocalMoquiServer | 
   return null;
 };
 
-const discoverLocalMoquiServers = async () => {
-  const results = await Promise.all(getProbePorts().map(detectLocalMoquiServer));
+const discoverLocalApiServers = async () => {
+  const results = await Promise.all(getProbePorts().map(detectLocalApiServer));
 
-  return results.filter(Boolean) as LocalMoquiServer[];
+  return results.filter(Boolean) as LocalApiServer[];
 };
 
-export const localMoquiDiscoveryPlugin = (): Plugin => ({
-  name: "accxui-local-moqui-discovery",
+export const localApiServerDiscoveryPlugin = (): Plugin => ({
+  name: "accxui-local-api-server-discovery",
   apply: "serve",
   configureServer(server) {
     server.middlewares.use(DISCOVERY_PATH, async (req, res) => {
@@ -101,7 +102,7 @@ export const localMoquiDiscoveryPlugin = (): Plugin => ({
         return;
       }
 
-      const servers = await discoverLocalMoquiServers();
+      const servers = await discoverLocalApiServers();
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(servers));
     });

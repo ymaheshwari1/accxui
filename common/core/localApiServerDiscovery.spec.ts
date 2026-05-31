@@ -1,23 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
-import { discoverLocalMoquiServers } from "./localMoquiDiscovery";
+import { discoverLocalApiServers } from "./localApiServerDiscovery";
 
 const response = (status: number) => new Response(null, { status });
 
-describe("discoverLocalMoquiServers", () => {
-  it("detects a local Moqui server through checkLoginOptions", async () => {
+describe("discoverLocalApiServers", () => {
+  it("detects a local API server through checkLoginOptions", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(response(404))
       .mockResolvedValueOnce(response(200));
 
-    const servers = await discoverLocalMoquiServers({ ports: [8080], fetcher });
+    const servers = await discoverLocalApiServers({ ports: [8080], fetcher });
 
     expect(servers).toEqual([
       {
-        label: "Local Moqui 8080",
+        label: "Local API Server 8080",
         oms: "http://localhost:8080",
         port: 8080,
-        signal: "checkLoginOptions"
+        signal: "loginOptions"
       }
     ]);
     expect(fetcher).toHaveBeenCalledWith(
@@ -33,11 +33,11 @@ describe("discoverLocalMoquiServers", () => {
       .mockResolvedValueOnce(response(404))
       .mockResolvedValueOnce(response(200));
 
-    const servers = await discoverLocalMoquiServers({ ports: [8080], fetcher });
+    const servers = await discoverLocalApiServers({ ports: [8080], fetcher });
 
     expect(servers).toEqual([
       {
-        label: "Local Moqui 8080",
+        label: "Local API Server 8080",
         oms: "http://localhost:8080",
         port: 8080,
         signal: "rest"
@@ -55,7 +55,7 @@ describe("discoverLocalMoquiServers", () => {
       .mockResolvedValueOnce(response(404))
       .mockRejectedValue(new Error("connection refused"));
 
-    const servers = await discoverLocalMoquiServers({ ports: [8080], fetcher });
+    const servers = await discoverLocalApiServers({ ports: [8080], fetcher });
 
     expect(servers).toEqual([]);
   });
