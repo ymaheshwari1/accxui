@@ -27,6 +27,28 @@
               <ion-input :label="translate('OMS')" label-placement="fixed" name="instanceUrl" v-model="instanceUrl" id="instanceUrl" type="text" required />
             </ion-item>
 
+            <ion-list v-if="isDiscoveringLocalMoqui || localMoquiServers.length">
+              <ion-list-header>
+                <ion-label>{{ translate("Local OMS") }}</ion-label>
+                <ion-spinner v-if="isDiscoveringLocalMoqui" name="crescent" />
+              </ion-list-header>
+              <ion-item
+                v-for="server in localMoquiServers"
+                :key="server.oms"
+                button
+                :disabled="isCheckingOms"
+                @click="selectLocalMoquiServer(server)"
+              >
+                <ion-label>
+                  <h3>{{ server.label }}</h3>
+                  <p>{{ server.oms }}</p>
+                </ion-label>
+                <ion-note slot="end">
+                  {{ server.signal === "checkLoginOptions" ? translate("Ready") : translate("Detected") }}
+                </ion-note>
+              </ion-item>
+            </ion-list>
+
             <div class="ion-padding">
               <!-- @keyup.enter.stop to stop the form from submitting on enter press as keyup.enter is already bound
               through the form above, causing both the form and the button to submit. -->
@@ -74,6 +96,10 @@ import {
   IonIcon,
   IonInput,
   IonItem,
+  IonLabel,
+  IonList,
+  IonListHeader,
+  IonNote,
   IonPage,
   IonSpinner,
   loadingController,
@@ -87,6 +113,7 @@ import { translate } from "../core/i18n"
 import { commonUtil } from "../utils/commonUtil";
 import { useAuth } from "../composables/useAuth";
 import { accxuiConfig } from "../core/configRegistry";
+import { discoverLocalMoquiServers, type LocalMoquiServer } from "../core/localMoquiDiscovery";
 
 let route = null as any;
 
@@ -108,6 +135,9 @@ const isCheckingOms = ref(false);
 // isInitializing starts true (to hide form), so we can't use it as the guard.
 let initInProgress = false;
 const isLoggingIn = ref(false);
+const isDiscoveringLocalMoqui = ref(false);
+const localMoquiServers = ref<LocalMoquiServer[]>([]);
+const hasDiscoveredLocalMoqui = ref(false);
 let router: any = ref();
 
 const goToLogin = () => {
@@ -139,6 +169,23 @@ const toggleOmsInput = () => {
   if (showOmsInput.value) {
     username.value = "";
     password.value = "";
+    discoverLocalMoquiOptions();
+  }
+};
+
+const canDiscoverLocalMoqui = () => {
+  return import.meta.env.DEV && typeof window !== "undefined";
+};
+
+const discoverLocalMoquiOptions = async () => {
+  if (!canDiscoverLocalMoqui() || hasDiscoveredLocalMoqui.value) return;
+
+  hasDiscoveredLocalMoqui.value = true;
+  isDiscoveringLocalMoqui.value = true;
+  try {
+    localMoquiServers.value = await discoverLocalMoquiServers();
+  } finally {
+    isDiscoveringLocalMoqui.value = false;
   }
 };
 
@@ -190,6 +237,13 @@ const setOms = async () => {
     toggleOmsInput();
   }
   isCheckingOms.value = false;
+};
+
+const selectLocalMoquiServer = async (server: LocalMoquiServer) => {
+  if (isCheckingOms.value) return;
+
+  instanceUrl.value = server.oms;
+  await setOms();
 };
 
 const initialise = async () => {
@@ -272,7 +326,12 @@ const initialise = async () => {
   }
   dismissLoader();
   isInitializing.value = false;
-    initInProgress = false;
+
+  if (showOmsInput.value) {
+    discoverLocalMoquiOptions();
+  }
+
+  initInProgress = false;
 };
 
 const handleSubmit = () => {
