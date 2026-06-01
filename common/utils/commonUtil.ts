@@ -380,9 +380,8 @@ const getMaargBaseURL = () => {
 
 const getOmsURL = () => {
   const oms = getEmbeddedAppStoreSafe().oms || cookieHelper().get("oms")
-  // VITE_OMS_TYPE=moqui → use Moqui REST paths (/rest/s1/admin/)
+  // VITE_OMS_TYPE=moqui → use Moqui REST paths (/rest/s1/)
   // VITE_OMS_TYPE unset  → use OFBiz paths (/api/)  [default, backward-compatible]
-  const isMoqui = import.meta.env.VITE_OMS_TYPE === 'moqui'
   let omsURL = ""
   if (oms) {
     const trimmedOms = oms.trim()
@@ -391,11 +390,11 @@ const getOmsURL = () => {
       // Full URL provided — use as-is if it already has a known path suffix
       omsURL = (trimmedOms.includes('/api') || trimmedOms.includes('/rest/'))
         ? trimmedOms
-        : isMoqui ? `${cleanOms}/rest/s1/admin/` : `${cleanOms}/api/`
+        : commonUtil.isMoqui() ? `${cleanOms}/rest/s1/` : `${cleanOms}/api/`
     } else {
       // Plain subdomain — build full URL for the configured backend type
-      omsURL = isMoqui
-        ? `https://${trimmedOms}.hotwax.io/rest/s1/admin/`
+      omsURL = commonUtil.isMoqui()
+        ? `https://${trimmedOms}.hotwax.io/rest/s1/`
         : `https://${trimmedOms}.hotwax.io/api/`
     }
     if (omsURL && !omsURL.endsWith('/')) omsURL += '/'
@@ -871,8 +870,13 @@ const getFacilityChipLabel = (selectedFacilityIds: string[], facilities: any[]):
   }
 };
 
+const isMoqui = () => {
+  return import.meta.env.VITE_OMS_TYPE === "MOQUI"
+}
+
 export const commonUtil = {
   isAppEmbedded,
+  isMoqui,
   copyToClipboard,
   downloadCsv,
   formatCurrency,
