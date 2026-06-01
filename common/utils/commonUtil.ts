@@ -869,8 +869,13 @@ const getFacilityChipLabel = (selectedFacilityIds: string[], facilities: any[]):
   }
 };
 
+const isMoqui = () => {
+  return import.meta.env.VITE_OMS_TYPE === "MOQUI"
+}
+
 export const commonUtil = {
   isAppEmbedded,
+  isMoqui,
   copyToClipboard,
   downloadCsv,
   formatCurrency,

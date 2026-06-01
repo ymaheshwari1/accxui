@@ -84,12 +84,16 @@ export function useAuth() {
         const resp = await api({
           url: "login",
           method: "post",
-          data: {
+          data: commonUtil.isMoqui() ? {
             "username": username,
             "password": password
+          } : {
+            "USERNAME": username,
+            "PASSWORD": password
           },
           baseURL: commonUtil.getOmsURL()
         });
+
         if(commonUtil.hasError(resp)) {
           commonUtil.showToast(translate("Sorry, your username or password is incorrect. Please try again."));
           logger.error("error", resp.data._ERROR_MESSAGE_);
@@ -144,7 +148,7 @@ export function useAuth() {
       try {
         let resp = await api({
           url: "logout",
-          method: "POST",
+          method: commonUtil.isMoqui() ? "POST" : "GET",
           baseURL: commonUtil.getOmsURL()
         }) as any;
         resp = JSON.parse(resp.data.startsWith("//") ? resp.data.replace("//", "") : resp.data);
