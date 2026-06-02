@@ -22,10 +22,6 @@ const parsePortList = (value?: string) => {
     .filter((port) => Number.isInteger(port) && port > 0 && port <= 65535);
 };
 
-const getProbePorts = () => {
-  return parsePortList(process.env.VITE_LOCAL_API_SERVER_PORTS);
-};
-
 const fetchWithTimeout = async (url: string) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -62,8 +58,8 @@ const detectLocalApiServer = async (port: number): Promise<LocalApiServer | null
   return null;
 };
 
-const discoverLocalApiServers = async () => {
-  const results = await Promise.all(getProbePorts().map(detectLocalApiServer));
+const discoverLocalApiServers = async (ports: number[]) => {
+  const results = await Promise.all(ports.map(detectLocalApiServer));
 
   return results.filter(Boolean) as LocalApiServer[];
 };
@@ -79,7 +75,8 @@ export const localApiServerDiscoveryPlugin = (): Plugin => ({
         return;
       }
 
-      const servers = await discoverLocalApiServers();
+      const ports = parsePortList(server.config.env.VITE_LOCAL_API_SERVER_PORTS);
+      const servers = await discoverLocalApiServers(ports);
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(servers));
     });
