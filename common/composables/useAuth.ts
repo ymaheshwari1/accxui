@@ -210,9 +210,9 @@ export function useAuth() {
           // Strip any /rest/s1/... path suffix so getMaargURL() can append /rest/s1/ itself.
           // e.g. "http://localhost:8080" → maarg="http://localhost:8080" → getMaargURL()="http://localhost:8080/rest/s1/"
           // e.g. "demo"                  → maarg="demo"                  → getMaargURL()="https://demo.hotwax.io/rest/s1/"
-          const omsVal = cookieHelper().get("oms") as string || ""
+          const omsVal = (cookieHelper().get("oms") as string || "").trim()
           const maargVal = omsVal.startsWith('http')
-            ? omsVal.replace(/\/rest\/s1.*$/, '')
+            ? omsVal.replace(/\/rest\/s1.*$/, '').replace(/\/+$/, '')
             : omsVal
           cookieHelper().set("maarg", maargVal, getDuration())
         }

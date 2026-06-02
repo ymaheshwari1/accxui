@@ -27,6 +27,28 @@
               <ion-input :label="translate('OMS')" label-placement="fixed" name="instanceUrl" v-model="instanceUrl" id="instanceUrl" type="text" required />
             </ion-item>
 
+            <ion-list v-if="isDiscoveringLocalApiServers || localApiServers.length">
+              <ion-list-header>
+                <ion-label>{{ translate("Local OMS") }}</ion-label>
+                <ion-spinner v-if="isDiscoveringLocalApiServers" name="crescent" />
+              </ion-list-header>
+              <ion-item
+                v-for="server in localApiServers"
+                :key="server.oms"
+                button
+                :disabled="isCheckingOms"
+                @click="selectLocalApiServer(server)"
+              >
+                <ion-label>
+                  {{ server.label }}
+                  <p>{{ server.oms }}</p>
+                </ion-label>
+                <ion-note slot="end">
+                  {{ server.signal === "loginOptions" ? translate("Ready") : translate("Detected") }}
+                </ion-note>
+              </ion-item>
+            </ion-list>
+
             <div class="ion-padding">
               <!-- @keyup.enter.stop to stop the form from submitting on enter press as keyup.enter is already bound
               through the form above, causing both the form and the button to submit. -->
@@ -74,6 +96,10 @@ import {
   IonIcon,
   IonInput,
   IonItem,
+  IonLabel,
+  IonList,
+  IonListHeader,
+  IonNote,
   IonPage,
   IonSpinner,
   loadingController,
@@ -87,6 +113,7 @@ import { translate } from "../core/i18n"
 import { commonUtil } from "../utils/commonUtil";
 import { useAuth } from "../composables/useAuth";
 import { accxuiConfig } from "../core/configRegistry";
+import { discoverLocalApiServers, type LocalApiServer } from "../core/localApiServerDiscovery";
 
 let route = null as any;
 
@@ -108,6 +135,9 @@ const isCheckingOms = ref(false);
 // isInitializing starts true (to hide form), so we can't use it as the guard.
 let initInProgress = false;
 const isLoggingIn = ref(false);
+const isDiscoveringLocalApiServers = ref(false);
+const localApiServers = ref<LocalApiServer[]>([]);
+const hasDiscoveredLocalApiServers = ref(false);
 let router: any = ref();
 
 const goToLogin = () => {
@@ -139,6 +169,25 @@ const toggleOmsInput = () => {
   if (showOmsInput.value) {
     username.value = "";
     password.value = "";
+    discoverLocalApiServerOptions();
+  }
+};
+
+const canDiscoverLocalApiServers = () => {
+  return import.meta.env.DEV && typeof window !== "undefined";
+};
+
+const discoverLocalApiServerOptions = async () => {
+  if (!canDiscoverLocalApiServers() || hasDiscoveredLocalApiServers.value) return;
+
+  hasDiscoveredLocalApiServers.value = true;
+  isDiscoveringLocalApiServers.value = true;
+  try {
+    localApiServers.value = await discoverLocalApiServers();
+  } catch (error) {
+    console.error("Failed to discover local API servers:", error);
+  } finally {
+    isDiscoveringLocalApiServers.value = false;
   }
 };
 
@@ -192,6 +241,28 @@ const setOms = async () => {
   isCheckingOms.value = false;
 };
 
+const selectLocalApiServer = async (server: LocalApiServer) => {
+  if (isCheckingOms.value) return;
+
+  instanceUrl.value = server.oms;
+  await setOms();
+
+  // Toggling the oms again so to login into the app instead of moving to the login view where users sees
+  // login process in action
+  // We can check if this behaviour needs to be improved, like let user move ahead to login screen or
+  // add a loader and do not toggle the UI, so that in backgroun the UI changes, but due to the loader
+  // user can't perform any operation there
+  toggleOmsInput();
+
+  const devUsername = import.meta.env.VITE_USERNAME;
+  const devPassword = import.meta.env.VITE_PASSWORD;
+  if (import.meta.env.DEV && devUsername && devPassword) {
+    username.value = devUsername;
+    password.value = devPassword;
+    await login();
+  }
+};
+
 const initialise = async () => {
   // Guard against concurrent calls — onIonViewWillEnter fires on each navigation
   if (initInProgress) return;
@@ -199,80 +270,77 @@ const initialise = async () => {
   isInitializing.value = true;
   await presentLoader("Processing");
 
-  // When having token and oms in login, it means that we are coming from legacy launchpad login flow
-  if(route.query?.token && route.query?.oms) {
-    // This array is maintaining list of apps those are moqui first, we are maintaining this to have support
-    // to run the accxui apps with old login launchpad redirect flow
-    const maargApps = ["atp", "company", "order-routing", "inventorycount", "bopis", "transfers", "localhost"]
-    const { host } = new URL(window.location.href)
-    // Need to consider the info received in query as valid and thus need to clear the auth state
-    clearAuth()
-    const { oms, omsRedirectionUrl } = route.query as any
-    if(maargApps.some(app => host.includes(app))) {
-      updateOMS(omsRedirectionUrl)
-      accxuiConfig.value.oms = omsRedirectionUrl
-    } else {
-      updateOMS(oms)
-      accxuiConfig.value.oms = oms
+  try {
+    // When having token and oms in login, it means that we are coming from legacy launchpad login flow
+    if(route.query?.token && route.query?.oms) {
+      // This array is maintaining list of apps those are moqui first, we are maintaining this to have support
+      // to run the accxui apps with old login launchpad redirect flow
+      const maargApps = ["atp", "company", "order-routing", "inventorycount", "bopis", "transfers", "localhost"]
+      const { host } = new URL(window.location.href)
+      // Need to consider the info received in query as valid and thus need to clear the auth state
+      clearAuth()
+      const { oms, omsRedirectionUrl } = route.query as any
+      if(maargApps.some(app => host.includes(app))) {
+        updateOMS(omsRedirectionUrl)
+        accxuiConfig.value.oms = omsRedirectionUrl
+      } else {
+        updateOMS(oms)
+        accxuiConfig.value.oms = oms
+      }
+      await fetchLoginOptions()
+      await login(route.query)
+      return;
     }
-    await fetchLoginOptions()
-    await login(route.query)
+
+    if (route.query?.token) {
+      // SAML login handling as only token will be returned in the query when login through SAML
+      await login(route.query)
+      return;
+    }
+
+    // fetch login options only if OMS is there as API calls require OMS
+    if (cookieHelper().get("oms")) {
+      await fetchLoginOptions();
+    }
+
+    // show OMS input if SAML is configured or if OMS cookie is not set
+    if (loginOption.value.loginAuthType !== 'BASIC' || !cookieHelper().get("oms")) {
+      showOmsInput.value = true;
+    }
+
+    // if a session is already active, login directly in the app
+    if (isAuthenticated.value) {
+      router.value.push("/");
+      return;
+    }
+
+    if(cookieHelper().get("oms") && cookieHelper().get("token") && cookieHelper().get("userId") && cookieHelper().get("expirationTime")) {
+      accxuiConfig.value.oms = cookieHelper().get("oms") as string
+      await login({ token: cookieHelper().get("token"), expirationTime: cookieHelper().get("expirationTime") })
+      return;
+    }
+
+    instanceUrl.value = commonUtil.getOMSInstanceName();
+    if (instanceUrl.value) {
+      // If the current URL is available in alias show it for consistency
+      const currentInstanceUrlAlias = Object.keys(alias).find((key) => alias[key] === instanceUrl.value);
+      currentInstanceUrlAlias && (instanceUrl.value = currentInstanceUrlAlias);
+    }
+    // If there is no current preference set the default one
+    if (!instanceUrl.value && defaultAlias) {
+      instanceUrl.value = defaultAlias;
+    }
+
+    if (showOmsInput.value) {
+      discoverLocalApiServerOptions();
+    }
+  } catch (error) {
+    console.error(error);
+  } finally {
     dismissLoader();
     isInitializing.value = false;
     initInProgress = false;
-    return;
   }
-
-  if (route.query?.token) {
-    // SAML login handling as only token will be returned in the query when login through SAML
-    await login(route.query)
-    dismissLoader();
-    isInitializing.value = false;
-    initInProgress = false;
-    return;
-  }
-
-  // fetch login options only if OMS is there as API calls require OMS
-  if (cookieHelper().get("oms")) {
-    await fetchLoginOptions();
-  }
-
-  // show OMS input if SAML is configured or if OMS cookie is not set
-  if (loginOption.value.loginAuthType !== 'BASIC' || !cookieHelper().get("oms")) {
-    showOmsInput.value = true;
-  }
-
-  // if a session is already active, login directly in the app
-  if (isAuthenticated.value) {
-    router.value.push("/");
-    dismissLoader();
-    isInitializing.value = false;
-    initInProgress = false;
-    return;
-  }
-
-  if(cookieHelper().get("oms") && cookieHelper().get("token") && cookieHelper().get("userId") && cookieHelper().get("expirationTime")) {
-    accxuiConfig.value.oms = cookieHelper().get("oms") as string
-    await login({ token: cookieHelper().get("token"), expirationTime: cookieHelper().get("expirationTime") })
-    dismissLoader();
-    isInitializing.value = false;
-    initInProgress = false;
-    return;
-  }
-
-  instanceUrl.value = commonUtil.getOMSInstanceName();
-  if (instanceUrl.value) {
-    // If the current URL is available in alias show it for consistency
-    const currentInstanceUrlAlias = Object.keys(alias).find((key) => alias[key] === instanceUrl.value);
-    currentInstanceUrlAlias && (instanceUrl.value = currentInstanceUrlAlias);
-  }
-  // If there is no current preference set the default one
-  if (!instanceUrl.value && defaultAlias) {
-    instanceUrl.value = defaultAlias;
-  }
-  dismissLoader();
-  isInitializing.value = false;
-    initInProgress = false;
 };
 
 const handleSubmit = () => {
