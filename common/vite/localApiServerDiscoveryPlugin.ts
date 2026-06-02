@@ -41,10 +41,6 @@ const fetchWithTimeout = async (url: string) => {
   }
 };
 
-const isRestSignal = (response: Response) => {
-  return response.ok || [401, 403, 405].includes(response.status);
-};
-
 const detectLocalApiServer = async (port: number): Promise<LocalApiServer | null> => {
   const oms = `http://${LOCAL_API_SERVER_HOST}:${port}`;
   const baseRestUrl = `${oms}/rest/s1/`;
@@ -57,20 +53,6 @@ const detectLocalApiServer = async (port: number): Promise<LocalApiServer | null
         oms,
         port,
         signal: "loginOptions"
-      };
-    }
-  } catch {
-    // Try the base REST path before treating this port as unavailable.
-  }
-
-  try {
-    const response = await fetchWithTimeout(baseRestUrl);
-    if (isRestSignal(response)) {
-      return {
-        label: `Local API Server ${port}`,
-        oms,
-        port,
-        signal: "rest"
       };
     }
   } catch {
