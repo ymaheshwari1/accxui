@@ -93,7 +93,7 @@ const getDevServerLocalApiServers = async (fetcher: typeof fetch) => {
 };
 
 export const getLocalApiServerProbePorts = () => {
-  return parsePortList(import.meta.env.VITE_LOCAL_API_SERVER_PORTS);
+  return [...new Set([...parsePortList(import.meta.env.VITE_LOCAL_API_SERVER_PORTS), 8080])];
 };
 
 export const discoverLocalApiServers = async (options: DiscoverLocalApiServersOptions = {}) => {

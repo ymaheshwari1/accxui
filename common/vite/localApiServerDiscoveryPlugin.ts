@@ -75,7 +75,7 @@ export const localApiServerDiscoveryPlugin = (): Plugin => ({
         return;
       }
 
-      const ports = parsePortList(server.config.env.VITE_LOCAL_API_SERVER_PORTS);
+      const ports = [...new Set([...parsePortList(server.config.env.VITE_LOCAL_API_SERVER_PORTS), 8080])];
       const servers = await discoverLocalApiServers(ports);
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(servers));
