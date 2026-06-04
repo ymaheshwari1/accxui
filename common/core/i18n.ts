@@ -6,7 +6,10 @@ let translate: any
 
 function findBestLocale(supportedLocales: string[]): string | null {
   if (typeof navigator === 'undefined') return null;
-  const userLocales = navigator.languages || [navigator.language];
+  const rawLocales = navigator.languages && navigator.languages.length > 0
+    ? navigator.languages
+    : [navigator.language];
+  const userLocales = rawLocales.filter((l): l is string => typeof l === 'string' && l.length > 0);
   for (const locale of userLocales) {
     const normLocale = locale.toLowerCase();
     const exactMatch = supportedLocales.find(s => s.toLowerCase() === normLocale);
@@ -22,7 +25,7 @@ function findBestLocale(supportedLocales: string[]): string | null {
 // Factory function to initialize with app’s locales
 export function createDxpI18n(localeMessages: Record<string, any>) {
   const cookie = cookieHelper();
-  const savedLocale = cookie.get('locale');
+  const savedLocale = typeof document !== 'undefined' ? cookie.get('locale') : null;
   const envLocale = import.meta.env.VITE_I18N_LOCALE;
   const supportedLocales = Object.keys(localeMessages);
   const navigatorLocale = findBestLocale(supportedLocales);
