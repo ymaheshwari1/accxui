@@ -287,12 +287,13 @@ function normalizeSearchResponse(resp: any): any {
 }
 
 async function runSolrQuery(payload: any): Promise<any> {
+  const isMoqui = commonUtil.isMoqui();
   const resp = await api({
-    url: "admin/search/query",
+    url: isMoqui ? "admin/search/query" : "admin/runSolrQuery",
     method: "post",
-    data: payload.json
+    data: isMoqui ? payload.json : payload
   }) as any;
-  return normalizeSearchResponse(resp);
+  return isMoqui ? normalizeSearchResponse(resp) : resp;
 }
 
 async function searchProducts(params: { keyword?: string, sort?: string, qf?: string, viewSize?: number, viewIndex?: number, filters?: any }): Promise<any> {
@@ -370,11 +371,13 @@ async function searchProducts(params: { keyword?: string, sort?: string, qf?: st
   }
 
   try {
-    const resp = normalizeSearchResponse(await api({
-      url: "admin/search/query",
+    const isMoqui = commonUtil.isMoqui();
+    let resp = await api({
+      url: isMoqui ? "admin/search/query" : "admin/runSolrQuery",
       method: "post",
-      data: payload.json
-    }) as any);
+      data: isMoqui ? payload.json : payload
+    }) as any;
+    if (isMoqui) resp = normalizeSearchResponse(resp);
 
     if (resp.status == 200 && !commonUtil.hasError(resp) && resp.data?.response?.numFound > 0) {
 
