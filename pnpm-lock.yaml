@@ -63,6 +63,9 @@ catalogs:
     axios-cache-adapter:
       specifier: 2.7.3
       version: 2.7.3
+    chrome-ide-trace:
+      specifier: ^0.1.1
+      version: 0.1.1
     comlink:
       specifier: 4.4.2
       version: 4.4.2
@@ -330,6 +333,9 @@ importers:
       '@vue/test-utils':
         specifier: ^2.4.6
         version: 2.4.6
+      chrome-ide-trace:
+        specifier: 'catalog:'
+        version: 0.1.1(@vue/compiler-dom@3.5.30)(@vue/compiler-sfc@3.5.30)(vite@5.2.0(@types/node@22.19.15)(terser@5.46.1))
       eslint:
         specifier: 'catalog:'
         version: 10.2.0(jiti@2.6.1)
@@ -1104,9 +1110,6 @@ importers:
       '@types/papaparse':
         specifier: 'catalog:'
         version: 5.5.2
-      chrome-ide-trace:
-        specifier: ^0.1.0
-        version: 0.1.0(@vue/compiler-dom@3.5.30)(@vue/compiler-sfc@3.5.30)(vite@5.2.14(@types/node@22.19.15)(terser@5.48.0))
       eslint:
         specifier: 'catalog:'
         version: 10.2.0(jiti@2.6.1)
@@ -5090,13 +5093,13 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chrome-ide-trace@0.1.0:
-    resolution: {integrity: sha512-S8J9Q0qib7rfp+XbDmv7BWFVJxpT+oWzSaldHAUY4hfOma8DDxaeRahdxk3EnmCimdHiKJkoNfuxqeVWjir8rw==}
+  chrome-ide-trace@0.1.1:
+    resolution: {integrity: sha512-FV8nTFIHuBD7kYaURPqCcgXNVdBOn2FV0zSI/WBkILYOLDYSyemOHnAvDSQY2ZHOrQ9jp5XrNe27FrkxTpUFvg==}
     hasBin: true
     peerDependencies:
       '@vue/compiler-dom': ^3.5.0
       '@vue/compiler-sfc': ^3.5.0
-      vite: ^7.0.0
+      vite: ^5.0.0 || ^7.0.0
 
   chrome-trace-event@1.0.4:
     resolution: {integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==}
@@ -14858,11 +14861,11 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chrome-ide-trace@0.1.0(@vue/compiler-dom@3.5.30)(@vue/compiler-sfc@3.5.30)(vite@5.2.14(@types/node@22.19.15)(terser@5.48.0)):
+  chrome-ide-trace@0.1.1(@vue/compiler-dom@3.5.30)(@vue/compiler-sfc@3.5.30)(vite@5.2.0(@types/node@22.19.15)(terser@5.46.1)):
     dependencies:
       '@vue/compiler-dom': 3.5.30
       '@vue/compiler-sfc': 3.5.30
-      vite: 5.2.14(@types/node@22.19.15)(terser@5.48.0)
+      vite: 5.2.0(@types/node@22.19.15)(terser@5.46.1)
 
   chrome-trace-event@1.0.4: {}
 
