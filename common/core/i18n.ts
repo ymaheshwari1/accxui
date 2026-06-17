@@ -9,18 +9,18 @@ function findBestLocale(supportedLocales: string[]): string | null {
     const exactMatch = supportedLocales.find(s => s.toLowerCase() === normLocale);
     if (exactMatch) return exactMatch;
 
-    const baseLang = normLocale.split(‘-’)[0];
-    const prefixMatch = supportedLocales.find(s => s.split(‘-’)[0].toLowerCase() === baseLang);
+    const baseLang = normLocale.split('-')[0];
+    const prefixMatch = supportedLocales.find(s => s.split('-')[0].toLowerCase() === baseLang);
     if (prefixMatch) return prefixMatch;
   }
   return null;
 }
 
-// Factory function to initialize with app’s locales
+// Factory function to initialize with app's locales
 export function createDxpI18n(localeMessages: Record<string, any>) {
   const supportedLocales = Object.keys(localeMessages);
   const navigatorLocale = findBestLocale(supportedLocales);
-  const defaultFallback = import.meta.env.VITE_I18N_FALLBACK_LOCALE || ‘en-US’;
+  const defaultFallback = import.meta.env.VITE_I18N_FALLBACK_LOCALE || 'en-US';
 
   const selectedLocale = navigatorLocale || defaultFallback;
 
