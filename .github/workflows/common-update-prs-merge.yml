@@ -1,18 +1,18 @@
 on:
   workflow_call:
-    secrets:
-      envPAT:
-        required: true
 
 jobs:
   update-prs:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
 
     steps:
       - name: Update all open PRs targeting main
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.envPAT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { data: pullRequests } = await github.rest.pulls.list({
               owner: context.repo.owner,
