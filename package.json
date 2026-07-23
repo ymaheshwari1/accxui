@@ -88,7 +88,8 @@
     "overrides": {
       "rollup": "catalog:",
       "@stencil/core": "catalog:",
-      "pinia": "catalog:"
+      "pinia": "catalog:",
+      "typescript": "catalog:"
     }
   },
   "description": "An Ionic project"
